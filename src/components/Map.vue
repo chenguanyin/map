@@ -13,15 +13,20 @@
       </div>
     </transition>
 
-    <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeIn">
-      <div v-show="FirstTipShow" class="first-tip-warpper">
+    <transition
+      name="custom-classes-transition"
+      enter-active-class="animated fadeIn"
+      leave-active-class="animated fadeOut"
+    >
+      <div v-if="FirstTipShow" class="first-tip-warpper">
         <div class="first-tip-dot" :style="{backgroundImage: `url(${dotImg})`}"></div>
         <div class="first-tip" :style="{backgroundImage: `url(${bg1Img})`}"></div>
       </div>
     </transition>
     <transition
-      enter-active-class="animated fadeOutRight"
-      leave-active-class="animated fadeOutRight"
+      name="custom-transition"
+      enter-active-class="animated fadeIn"
+      leave-active-class="animated fadeOut"
     >
       <div v-show="secondTipShow" class="second-tip-warpper">
         <div class="second-tip-dot" :style="{backgroundImage: `url(${dotImg})`}"></div>
@@ -65,18 +70,6 @@ export default {
   },
   mounted() {
     this.init();
-    //行政区划查询
-    var opts = {
-      subdistrict: 2, //返回下一级行政区
-      showbiz: false //最后一级返回街道信息
-    };
-    let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
-    console.log(district);
-    district.search("中国", function(status, result) {
-      if (status == "complete") {
-        console.log(result);
-      }
-    });
   },
 
   methods: {
@@ -87,10 +80,10 @@ export default {
         gridMapForeign: true,
         resizeEnable: true,
         // zoomEnable: false,
-        mapStyle: "amap://styles/blue",
+        mapStyle: "amap://styles/wine",
         zoom: 7
       });
-      // this.map.setFeatures(["road", "point", "bg"]);
+      this.map.setFeatures(["road", "point", "bg"]);
       // zoom listening//basic UI control
       window.AMapUI.loadUI(["control/BasicControl"], BasicControl => {
         //添加一个缩放控件
@@ -102,6 +95,47 @@ export default {
         );
       });
       this.showFirstTip(this.map);
+    },
+
+    setMaker() {
+      //行政区划查询
+      var opts = {
+        subdistrict: 2, //返回下一级行政区
+        showbiz: false //最后一级返回街道信息
+      };
+      let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
+      console.log(district);
+      district.search("中国", (status, result) => {
+        if (status == "complete") {
+          console.log(result);
+          const data = result.districtList[0].districtList.find(
+            v => v.adcode == "330000"
+          );
+          data.districtList.forEach(v => {
+            var center = [v.center.lng, v.center.lat];
+            var circleMarker = new this.AMap.CircleMarker({
+              center: center,
+              radius: 15, //3D视图下，CircleMarker半径不要超过64px
+              strokeColor: "white",
+              strokeWeight: 2,
+              strokeOpacity: 0.5,
+              fillColor: "rgba(170,114,57,1)",
+              fillOpacity: 0.8,
+              zIndex: 10,
+              bubble: true,
+              cursor: "pointer",
+              clickable: true,
+              click: e => {
+                console.log(e);
+              }
+            });
+            circleMarker.setMap(this.map);
+            circleMarker.on("click", function(e) {
+              console.log(e);
+            });
+          });
+        }
+      });
     },
     showFirstTip() {
       const base = 1000;
@@ -177,6 +211,7 @@ export default {
       window.Velocity(el, { opacity: 0 }, { duration: 500 });
       setTimeout(() => {
         console.log("调用接口");
+        this.setMaker();
       });
     },
     touchmove() {
