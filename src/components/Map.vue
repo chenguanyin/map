@@ -493,7 +493,6 @@ export default {
   height: 338px;
   background-color: #fff;
   margin: 0;
-  padding: 20px;
 }
 .list-warpper ul li {
   width: 90%;
