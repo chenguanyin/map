@@ -3,8 +3,8 @@
     <div id="container" style="width: 100%;height: 100%" />
     <transition @enter="enter" @after-enter="afterEnter" @leave="leave">
       <div v-if="show" class="animate-warpper" :style="{backgroundImage: `url(${coverImg})`}">
-        <div class="animate-title">这是一个标题</div>
-        <div>这是一个内容</div>
+        <div class="home-title" :style="{backgroundImage: `url(${homeTitle})`}"></div>
+        <div class="home-icon" :style="{backgroundImage: `url(${homeIcon})`}"></div>
       </div>
     </transition>
     <transition @enter="coverEnter" @leave="coverLeave">
@@ -33,14 +33,31 @@
         <div class="second-tip" :style="{backgroundImage: `url(${bg1Img})`}"></div>
       </div>
     </transition>
+    <transition @before-enter="listBeforeEnter" @enter="listEnter" @leave="listLeave">
+      <div v-show="listShow" class="list-warpper">
+        <div class="list-title">
+          <span :class="{ active: activeKey === 0 }" @click="activeKey = 0">委员说</span>
+          <span :class="{ active: activeKey === 1 }" @click="activeKey = 1">群众说</span>
+        </div>
+        <ul>
+          <li v-for="data in newData" :key="data.id">
+            <span>{{data.record}}</span>
+            <span style="float: right;color: red">点赞数：{{data.like_nums}}</span>
+          </li>
+        </ul>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script>
+import axios from "axios";
 import Img from "./scrollTop.png";
 import coverImg from "./cover.png";
 import dot from "./dot.png";
 import bg1 from "./show_bg_1.png";
+import homeIcon from "./home_icon.png";
+import homeTitle from "./home_title.jpg";
 
 console.log(Img);
 export default {
@@ -51,6 +68,11 @@ export default {
       coverShow: false,
       FirstTipShow: false,
       secondTipShow: false,
+      listShow: false,
+      activeKey: 0,
+      citylIist: [{ name: "杭州", number: 1 }],
+      homeTitle: homeTitle,
+      homeIcon: homeIcon,
       coverImg: coverImg,
       scrollImg: Img,
       dotImg: dot,
@@ -59,7 +81,31 @@ export default {
       AMap: window.AMap,
       zhouShanPos: [122.106863, 30.016028],
       wenzhouPos: [120.672111, 28.000575],
-      hangZhouPos: [120.153576, 30.287459]
+      hangZhouPos: [120.153576, 30.287459],
+      mapData: [
+        { id: "00000001", area: "宁波", value: "1232" },
+        { id: "00000002", area: "杭州", value: "12366" },
+        { id: "00000003", area: "嘉兴", value: "12312" }
+      ],
+      newData: [
+        {
+          id: "00000001",
+          record:
+            "丁元竹：新常态下，在心态上必须适应更慢更持续的发展态势和更低的经济增长预期。",
+          like_nums: "1223"
+        },
+        {
+          id: "00000002",
+          record: "贾晋京：简政放权确实有阻力，总理的“弹药”就是壮士断腕。",
+          like_nums: "12312"
+        },
+        {
+          id: "00000003",
+          record:
+            "李长安：“去产能”工作并非一蹴而就，“保就业”的任务也任重道远。",
+          like_nums: "2423"
+        }
+      ]
     };
   },
   computed: {
@@ -69,6 +115,7 @@ export default {
     msg: String
   },
   mounted() {
+    this.getData();
     this.init();
   },
 
@@ -94,48 +141,128 @@ export default {
           })
         );
       });
-      this.showFirstTip(this.map);
+      this.setPolygons();
+    },
+
+    getData() {
+      axios.get("/getNews", res => {
+        console.log(res);
+      });
+    },
+
+    getMapData() {
+      axios.get("/mapdata", res => {
+        console.log(res);
+      });
+    },
+
+    setPolygons() {
+      //行政区划查询
+      var opts = {
+        subdistrict: 1, //返回下一级行政区
+        extensions: "all", // 返回行政区边界坐标等具体信息
+        level: "province", // 查询范围是区
+        showbiz: false //最后一级返回街道信息
+      };
+      let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
+      console.log(district);
+      district.search("浙江省", (status, result) => {
+        if (status == "complete") {
+          console.log(result);
+          const { boundaries } = result.districtList[0];
+          var polygons = [];
+          if (boundaries) {
+            for (var i = 0, l = boundaries.length; i < l; i++) {
+              //生成行政区划polygon
+              var polygon = new this.AMap.Polygon({
+                map: this.map,
+                strokeWeight: 1,
+                path: boundaries[i],
+                fillOpacity: 0.7,
+                fillColor: "rgba(255, 0, 0, 0.5)",
+                strokeColor: "#fff"
+              });
+              polygons.push(polygon);
+            }
+          }
+          this.showFirstTip(this.map);
+        }
+      });
     },
 
     setMaker() {
       //行政区划查询
       var opts = {
         subdistrict: 2, //返回下一级行政区
+        extensions: "all", // 返回行政区边界坐标等具体信息
+        level: "district", // 查询范围是区
         showbiz: false //最后一级返回街道信息
       };
       let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
       console.log(district);
-      district.search("中国", (status, result) => {
-        if (status == "complete") {
-          console.log(result);
-          const data = result.districtList[0].districtList.find(
-            v => v.adcode == "330000"
-          );
-          data.districtList.forEach(v => {
-            var center = [v.center.lng, v.center.lat];
-            var circleMarker = new this.AMap.CircleMarker({
-              center: center,
-              radius: 15, //3D视图下，CircleMarker半径不要超过64px
-              strokeColor: "white",
-              strokeWeight: 2,
-              strokeOpacity: 0.5,
-              fillColor: "rgba(170,114,57,1)",
-              fillOpacity: 0.8,
-              zIndex: 10,
-              bubble: true,
-              cursor: "pointer",
-              clickable: true,
-              click: e => {
-                console.log(e);
-              }
-            });
-            circleMarker.setMap(this.map);
-            circleMarker.on("click", function(e) {
-              console.log(e);
-            });
-          });
-        }
-      });
+      // district.search("浙江省", (status, result) => {
+      //   if (status == "complete") {
+      //     console.log(result);
+      //     const { boundaries } = result.districtList[0];
+      //     var outer = [
+      //       new this.AMap.LngLat(-360, 90, true),
+      //       new this.AMap.LngLat(-360, -90, true),
+      //       new this.AMap.LngLat(360, -90, true),
+      //       new this.AMap.LngLat(360, 90, true)
+      //     ];
+      //     var pathArray = [outer];
+      //     pathArray.push.apply(pathArray, boundaries);
+      //     var polygon = new this.AMap.Polygon({
+      //       // pathL:pathArray,
+      //       //线条颜色，使用16进制颜色代码赋值。默认值为#006600
+      //       strokeColor: "rgb(20,164,173)",
+      //       strokeWeight: 1,
+      //       //轮廓线透明度，取值范围[0,1]，0表示完全透明，1表示不透明。默认为0.9
+      //       strokeOpacity: 0.5,
+      //       //多边形填充颜色，使用16进制颜色代码赋值，如：#FFAA00
+      //       fillColor: "rgba(0,0,0)",
+      //       //多边形填充透明度，取值范围[0,1]，0表示完全透明，1表示不透明。默认为0.9
+      //       fillOpacity: 1,
+      //       //轮廓线样式，实线:solid，虚线:dashed
+      //       strokeStyle: "dashed",
+      //       /*勾勒形状轮廓的虚线和间隙的样式，此属性在strokeStyle 为dashed 时有效， 此属性在
+      //         ie9+浏览器有效 取值：
+      //         实线：[0,0,0]
+      //         虚线：[10,10] ，[10,10] 表示10个像素的实线和10个像素的空白（如此反复）组成的虚线
+      //         点画线：[10,2,10]， [10,2,10] 表示10个像素的实线和2个像素的空白 + 10个像素的实
+      //         线和10个像素的空白 （如此反复）组成的虚线*/
+      //       strokeDasharray: [0, 0, 0]
+      //     });
+      //     polygon.setPath(pathArray);
+      //     this.map.add(polygon);
+      //     // const data = result.districtList[0].districtList.find(
+      //     //   v => v.adcode == "330000"
+      //     // );
+      //     // data.districtList.forEach(v => {
+      //     //   var center = [v.center.lng, v.center.lat];
+      //     //   var circleMarker = new this.AMap.CircleMarker({
+      //     //     center: center,
+      //     //     radius: 15, //3D视图下，CircleMarker半径不要超过64px
+      //     //     strokeColor: "white",
+      //     //     strokeWeight: 2,
+      //     //     strokeOpacity: 0.5,
+      //     //     fillColor: "rgba(170,114,57,1)",
+      //     //     fillOpacity: 0.8,
+      //     //     zIndex: 10,
+      //     //     bubble: true,
+      //     //     cursor: "pointer",
+      //     //     clickable: true,
+      //     //     click: e => {
+      //     //       console.log(e);
+      //     //     }
+      //     //   });
+      //     //   circleMarker.setMap(this.map);
+      //     //   circleMarker.on("click", function(e) {
+      //     //     console.log(e);
+      //     //   });
+      //     // });
+      //   }
+      // });
     },
     showFirstTip() {
       const base = 1000;
@@ -211,11 +338,21 @@ export default {
       window.Velocity(el, { opacity: 0 }, { duration: 500 });
       setTimeout(() => {
         console.log("调用接口");
-        this.setMaker();
+        this.listShow = true;
+        this.map.panBy(0, -266);
       });
     },
     touchmove() {
       this.coverShow = false;
+    },
+    listBeforeEnter(el) {
+      el.style.bottom = "-366px";
+    },
+    listEnter(el) {
+      window.Velocity(el, { bottom: "0px" }, { duration: 500 });
+    },
+    listLeave() {
+      console.log("控制list不消失");
     }
   }
 };
@@ -242,6 +379,20 @@ export default {
   opacity: 0;
   transition: all 1s ease;
   color: #ccc;
+}
+.home-title {
+  width: 100%;
+  height: 80px;
+  margin-bottom: 30px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 90% 100%;
+}
+.home-icon {
+  width: 100%;
+  height: 80px;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 .animate-warpper div {
   opacity: 0;
@@ -323,5 +474,50 @@ export default {
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
+}
+.list-warpper {
+  height: 366px;
+  color: #000;
+  position: absolute;
+  bottom: -336px;
+  z-index: 99999;
+  margin-left: 5%;
+  margin-right: 5%;
+  left: 0%;
+  right: 0;
+  border-top-right-radius: 6px;
+  line-height: 30px;
+}
+.list-warpper ul {
+  list-style: none;
+  height: 338px;
+  background-color: #fff;
+  margin: 0;
+  padding: 20px;
+}
+.list-warpper ul li {
+  width: 90%;
+  margin: 0 5%;
+  font-size: 14px;
+  overflow: hidden;
+  word-break: break-all;
+  border-bottom: 1px solid #9c9c9c6b;
+}
+.list-title {
+  display: inline-block;
+  line-height: 28px;
+  height: 28px;
+  background-color: #fff;
+  font-size: 0;
+  box-shadow: 1px -4px 8px #3735417a;
+}
+.list-title span {
+  display: inline-block;
+  font-size: 14px;
+  padding: 0 10px;
+}
+.list-title span.active {
+  background: rgba(255, 0, 0, 0.7);
+  color: #fff;
 }
 </style>
