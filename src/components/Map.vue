@@ -133,7 +133,8 @@ export default {
             "李长安：“去产能”工作并非一蹴而就，“保就业”的任务也任重道远。",
           like_nums: "2423"
         }
-      ]
+      ],
+      colors: []
     };
   },
   computed: {
@@ -155,7 +156,7 @@ export default {
         gridMapForeign: true,
         resizeEnable: true,
         // zoomEnable: false,
-        mapStyle: "amap://styles/wine",
+        mapStyle: "amap://styles/normal",
         zoom: 7
       });
       this.map.setFeatures(["road", "point", "bg"]);
@@ -169,7 +170,7 @@ export default {
           })
         );
       });
-      this.initPro();
+      this.initPro(1);
     },
 
     getData() {
@@ -187,23 +188,22 @@ export default {
       });
     },
 
-    initPro(code, dep) {
+    initPro(dep) {
       dep = typeof dep == "undefined" ? 0 : dep;
       this.disProvince && this.disProvince.setMap(null);
-      console.log(this.AMap)
+      console.log(this.AMap);
       this.disProvince = new this.AMap.DistrictLayer.Province({
         zIndex: 12,
         adcode: ["330000"],
         depth: dep,
         styles: {
-          fill: function(properties) {
+          fill: properties => {
             // properties为可用于做样式映射的字段，包含
             // NAME_CHN:中文名称
             // adcode_pro
             // adcode_cit
             // adcode
-            var adcode = properties.adcode;
-            return this.getColorByName(adcode);
+            return this.getColorByName(properties.NAME_CHN);
           },
           "province-stroke": "cornflowerblue",
           "city-stroke": "white", // 中国地级市边界
@@ -214,6 +214,15 @@ export default {
       this.disProvince.setMap(this.map);
     },
 
+    getColorByName(name) {
+      console.log(name);
+      if (!this.colors[name]) {
+        var gb = Math.random() * 155;
+        this.colors[name] = `rgb(200, ${gb},${gb})`;
+      }
+
+      return this.colors[name];
+    },
     setPolygons() {
       //行政区划查询
       var opts = {
