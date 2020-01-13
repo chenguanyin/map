@@ -1,10 +1,13 @@
 <template>
   <div class="map-warpper" :class="wrapper">
+    <img :src="homeIcon" alt="图标" class="page-icon" />
     <div id="container" style="width: 100%;height: 100%" />
     <transition @enter="enter" @after-enter="afterEnter" @leave="leave">
       <div v-if="show" class="animate-warpper" :style="{backgroundImage: `url(${coverImg})`}">
-        <div class="home-title" :style="{backgroundImage: `url(${homeTitle})`}"></div>
-        <div class="home-icon" :style="{backgroundImage: `url(${homeIcon})`}"></div>
+        <div class="home-title" :style="{backgroundImage: `url(${homeIcon})`}">
+          <img :src="homeTitle" alt="标题" />
+        </div>
+        <div>文字。。。。</div>
       </div>
     </transition>
     <transition @enter="coverEnter" @leave="coverLeave">
@@ -39,13 +42,33 @@
           <span :class="{ active: activeKey === 0 }" @click="activeKey = 0">委员说</span>
           <span :class="{ active: activeKey === 1 }" @click="activeKey = 1">群众说</span>
         </div>
-        <ul>
+        <ul v-if="activeKey === 0">
           <li v-for="data in newData" :key="data.id">
-            <span>{{data.record}}</span>
-            <span style="float: right;color: red">点赞数：{{data.like_nums}}</span>
+            <div>{{data.record}}</div>
+            <span
+              class="like-icon"
+              :style="{backgroundImage: `url(${data.isActive? likeActiveImg:likeImg})`}"
+              @click="likeHandle(data.id)"
+            >{{data.like_nums}}</span>
+          </li>
+        </ul>
+        <ul v-if="activeKey === 1">
+          <textarea cols="30" rows="3" v-model="ideaStr"></textarea>
+          <div>
+            <a class="btn" :class="{disabled: !ideaStr}" @click="sendIdeaStrHandle">发表</a>
+          </div>
+          <li v-for="data in newData" :key="data.id">
+            <div>{{data.record}}</div>
           </li>
         </ul>
       </div>
+    </transition>
+    <transition
+      name="custom-transition"
+      enter-active-class="animated fadeIn"
+      leave-active-class="animated fadeOut"
+    >
+      <div v-show="modalShow" class="modal-warpper">发送成功，会在审核之后显示！！！</div>
     </transition>
   </div>
 </template>
@@ -57,8 +80,9 @@ import coverImg from "./cover.png";
 import dot from "./dot.png";
 import bg1 from "./show_bg_1.png";
 import homeIcon from "./home_icon.png";
-import homeTitle from "./home_title.jpg";
-
+import homeTitle from "./home_title.png";
+import like from "./like.png";
+import likeActive from "./like_clicked.png";
 console.log(Img);
 export default {
   name: "Map",
@@ -69,6 +93,8 @@ export default {
       FirstTipShow: false,
       secondTipShow: false,
       listShow: false,
+      modalShow: false,
+      ideaStr: "",
       activeKey: 0,
       citylIist: [{ name: "杭州", number: 1 }],
       homeTitle: homeTitle,
@@ -77,6 +103,8 @@ export default {
       scrollImg: Img,
       dotImg: dot,
       bg1Img: bg1,
+      likeImg: like,
+      likeActiveImg: likeActive,
       isMobile: /iPad|iPod|iPhone|Android/.test(navigator.userAgent),
       AMap: window.AMap,
       zhouShanPos: [122.106863, 30.016028],
@@ -141,11 +169,14 @@ export default {
           })
         );
       });
-      this.setPolygons();
+      this.initPro();
     },
 
     getData() {
       axios.get("/getNews", res => {
+        console.log(res);
+      });
+      axios.get("/getComment", res => {
         console.log(res);
       });
     },
@@ -156,21 +187,55 @@ export default {
       });
     },
 
+    initPro(code, dep) {
+      dep = typeof dep == "undefined" ? 0 : dep;
+      this.disProvince && this.disProvince.setMap(null);
+      console.log(this.AMap)
+      this.disProvince = new this.AMap.DistrictLayer.Province({
+        zIndex: 12,
+        adcode: ["330000"],
+        depth: dep,
+        styles: {
+          fill: function(properties) {
+            // properties为可用于做样式映射的字段，包含
+            // NAME_CHN:中文名称
+            // adcode_pro
+            // adcode_cit
+            // adcode
+            var adcode = properties.adcode;
+            return this.getColorByName(adcode);
+          },
+          "province-stroke": "cornflowerblue",
+          "city-stroke": "white", // 中国地级市边界
+          "county-stroke": "rgba(255,255,255,0.5)" // 中国区县边界
+        }
+      });
+
+      this.disProvince.setMap(this.map);
+    },
+
     setPolygons() {
       //行政区划查询
       var opts = {
-        subdistrict: 1, //返回下一级行政区
+        subdistrict: 2, //返回下一级行政区
         extensions: "all", // 返回行政区边界坐标等具体信息
         level: "province", // 查询范围是区
         showbiz: false //最后一级返回街道信息
       };
       let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
-      console.log(district);
       district.search("浙江省", (status, result) => {
         if (status == "complete") {
           console.log(result);
-          const { boundaries } = result.districtList[0];
+          const { boundaries, districtList } = result.districtList[0];
           var polygons = [];
+          const obj = {};
+          districtList.forEach(v => {
+            obj[v.name] = {
+              lng: v.center.lng,
+              lat: v.center.lat
+            };
+          });
+          console.log(JSON.stringify(obj));
           if (boundaries) {
             for (var i = 0, l = boundaries.length; i < l; i++) {
               //生成行政区划polygon
@@ -185,7 +250,8 @@ export default {
               polygons.push(polygon);
             }
           }
-          this.showFirstTip(this.map);
+          // this.showFirstTip(this.map);
+          this.listShow = true;
         }
       });
     },
@@ -353,6 +419,26 @@ export default {
     },
     listLeave() {
       console.log("控制list不消失");
+    },
+    likeHandle(id) {
+      console.log(id);
+      axios.post("/addValue", { content: this.ideaStr }).then(res => {
+        if (res.success) {
+          alert("点赞成功");
+        }
+      });
+    },
+    sendIdeaStrHandle() {
+      if (!this.ideaStr) return;
+      axios.post("/comment", { content: this.ideaStr }).then(res => {
+        if (res.success) {
+          this.ideaStr = "";
+          this.modalShow = true;
+          setTimeout(() => {
+            this.modalShow = false;
+          }, 2000);
+        }
+      });
     }
   }
 };
@@ -370,6 +456,13 @@ export default {
   height: 100%;
   position: relative;
 }
+.page-icon {
+  width: 90px;
+  position: absolute;
+  top: 0;
+  left: 2%;
+  z-index: 111;
+}
 .animate-warpper {
   position: absolute;
   top: 40%;
@@ -379,20 +472,20 @@ export default {
   opacity: 0;
   transition: all 1s ease;
   color: #ccc;
+  text-align: center;
 }
 .home-title {
   width: 100%;
   height: 80px;
+  padding-top: 10px;
   margin-bottom: 30px;
   background-repeat: no-repeat;
-  background-position: center;
-  background-size: 90% 100%;
+  background-position: 95% 0%;
+  background-size: 80px;
 }
-.home-icon {
-  width: 100%;
-  height: 80px;
-  background-repeat: no-repeat;
-  background-position: center;
+.home-title img {
+  width: 90%;
+  height: 100%;
 }
 .animate-warpper div {
   opacity: 0;
@@ -493,11 +586,12 @@ export default {
   height: 338px;
   background-color: #fff;
   margin: 0;
+  padding: 20px;
 }
 .list-warpper ul li {
-  width: 90%;
-  margin: 0 5%;
+  width: 100%;
   font-size: 14px;
+  padding: 10px 0;
   overflow: hidden;
   word-break: break-all;
   border-bottom: 1px solid #9c9c9c6b;
@@ -518,5 +612,29 @@ export default {
 .list-title span.active {
   background: rgba(255, 0, 0, 0.7);
   color: #fff;
+}
+.like-icon {
+  float: right;
+  height: 14px;
+  padding-left: 18px;
+  background-repeat: no-repeat;
+  background-size: 14px 100%;
+  line-height: 16px;
+}
+textarea {
+  border: 1px solid rgb(204, 204, 204);
+  width: 98%;
+}
+.btn {
+  background: rgba(255, 0, 0, 0.7);
+  padding: 0 20px;
+  border-radius: 4px;
+  color: #fff;
+  float: right;
+}
+.btn.disabled {
+  background: #ccc;
+}
+.modal-warpper {
 }
 </style>
