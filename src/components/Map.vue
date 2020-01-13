@@ -212,6 +212,8 @@ export default {
       });
 
       this.disProvince.setMap(this.map);
+      this.showFirstTip(this.map);
+      // this.listShow = true;
     },
 
     getColorByName(name) {
