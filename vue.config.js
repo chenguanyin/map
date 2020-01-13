@@ -2,6 +2,6 @@
 
 module.exports = {
   devServer: {
-    proxy: "http://asp.chenaa.top/"
+    proxy: "http://www.chenaa.top:3001/"
   }
 };

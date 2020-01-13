@@ -1,6 +1,7 @@
 <template>
   <div class="map-warpper" :class="wrapper">
     <img :src="homeIcon" alt="图标" class="page-icon" />
+    <span class="total-num" v-show='listShow'>总点赞数：{{totalNum}}</span>
     <div id="container" style="width: 100%;height: 100%" />
     <transition @enter="enter" @after-enter="afterEnter" @leave="leave">
       <div v-if="show" class="animate-warpper" :style="{backgroundImage: `url(${coverImg})`}">
@@ -43,12 +44,12 @@
           <span :class="{ active: activeKey === 1 }" @click="activeKey = 1">群众说</span>
         </div>
         <ul v-if="activeKey === 0">
-          <li v-for="data in newData" :key="data.id">
+          <li v-for="(data, index) in newData" :key="data.id">
             <div>{{data.record}}</div>
             <span
               class="like-icon"
               :style="{backgroundImage: `url(${data.isActive? likeActiveImg:likeImg})`}"
-              @click="likeHandle(data.id)"
+              @click="likeHandle(data.id, index)"
             >{{data.like_nums}}</span>
           </li>
         </ul>
@@ -68,7 +69,9 @@
       enter-active-class="animated fadeIn"
       leave-active-class="animated fadeOut"
     >
-      <div v-show="modalShow" class="modal-warpper">发送成功，会在审核之后显示！！！</div>
+      <div v-show="modalShow" class="modal-warpper">
+        <div>发送成功，会在审核之后显示！！！</div>
+      </div>
     </transition>
   </div>
 </template>
@@ -96,6 +99,7 @@ export default {
       modalShow: false,
       ideaStr: "",
       activeKey: 0,
+      totalNum: 1234,
       citylIist: [{ name: "杭州", number: 1 }],
       homeTitle: homeTitle,
       homeIcon: homeIcon,
@@ -110,30 +114,9 @@ export default {
       zhouShanPos: [122.106863, 30.016028],
       wenzhouPos: [120.672111, 28.000575],
       hangZhouPos: [120.153576, 30.287459],
-      mapData: [
-        { id: "00000001", area: "宁波", value: "1232" },
-        { id: "00000002", area: "杭州", value: "12366" },
-        { id: "00000003", area: "嘉兴", value: "12312" }
-      ],
-      newData: [
-        {
-          id: "00000001",
-          record:
-            "丁元竹：新常态下，在心态上必须适应更慢更持续的发展态势和更低的经济增长预期。",
-          like_nums: "1223"
-        },
-        {
-          id: "00000002",
-          record: "贾晋京：简政放权确实有阻力，总理的“弹药”就是壮士断腕。",
-          like_nums: "12312"
-        },
-        {
-          id: "00000003",
-          record:
-            "李长安：“去产能”工作并非一蹴而就，“保就业”的任务也任重道远。",
-          like_nums: "2423"
-        }
-      ],
+      mapData: [],
+      newData: [],
+      commentData: [],
       colors: []
     };
   },
@@ -174,17 +157,24 @@ export default {
     },
 
     getData() {
-      axios.get("/getNews", res => {
-        console.log(res);
+      axios.get("/getNews").then(res => {
+        const { model, success } = res.data;
+        if (success) {
+          this.newData = model;
+        }
       });
-      axios.get("/getComment", res => {
-        console.log(res);
+      axios.get("/getComment").then(res => {
+        const { model, success } = res.data;
+        if (success) {
+          this.commentData = model;
+        }
       });
-    },
 
-    getMapData() {
-      axios.get("/mapdata", res => {
-        console.log(res);
+      axios.get("/mapdata").then(res => {
+        const { model, success } = res.data;
+        if (success) {
+          this.mapdata = model;
+        }
       });
     },
 
@@ -277,69 +267,34 @@ export default {
       };
       let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
       console.log(district);
-      // district.search("浙江省", (status, result) => {
-      //   if (status == "complete") {
-      //     console.log(result);
-      //     const { boundaries } = result.districtList[0];
-      //     var outer = [
-      //       new this.AMap.LngLat(-360, 90, true),
-      //       new this.AMap.LngLat(-360, -90, true),
-      //       new this.AMap.LngLat(360, -90, true),
-      //       new this.AMap.LngLat(360, 90, true)
-      //     ];
-      //     var pathArray = [outer];
-      //     pathArray.push.apply(pathArray, boundaries);
-      //     var polygon = new this.AMap.Polygon({
-      //       // pathL:pathArray,
-      //       //线条颜色，使用16进制颜色代码赋值。默认值为#006600
-      //       strokeColor: "rgb(20,164,173)",
-      //       strokeWeight: 1,
-      //       //轮廓线透明度，取值范围[0,1]，0表示完全透明，1表示不透明。默认为0.9
-      //       strokeOpacity: 0.5,
-      //       //多边形填充颜色，使用16进制颜色代码赋值，如：#FFAA00
-      //       fillColor: "rgba(0,0,0)",
-      //       //多边形填充透明度，取值范围[0,1]，0表示完全透明，1表示不透明。默认为0.9
-      //       fillOpacity: 1,
-      //       //轮廓线样式，实线:solid，虚线:dashed
-      //       strokeStyle: "dashed",
-      //       /*勾勒形状轮廓的虚线和间隙的样式，此属性在strokeStyle 为dashed 时有效， 此属性在
-      //         ie9+浏览器有效 取值：
-      //         实线：[0,0,0]
-      //         虚线：[10,10] ，[10,10] 表示10个像素的实线和10个像素的空白（如此反复）组成的虚线
-      //         点画线：[10,2,10]， [10,2,10] 表示10个像素的实线和2个像素的空白 + 10个像素的实
-      //         线和10个像素的空白 （如此反复）组成的虚线*/
-      //       strokeDasharray: [0, 0, 0]
-      //     });
-      //     polygon.setPath(pathArray);
-      //     this.map.add(polygon);
-      //     // const data = result.districtList[0].districtList.find(
-      //     //   v => v.adcode == "330000"
-      //     // );
-      //     // data.districtList.forEach(v => {
-      //     //   var center = [v.center.lng, v.center.lat];
-      //     //   var circleMarker = new this.AMap.CircleMarker({
-      //     //     center: center,
-      //     //     radius: 15, //3D视图下，CircleMarker半径不要超过64px
-      //     //     strokeColor: "white",
-      //     //     strokeWeight: 2,
-      //     //     strokeOpacity: 0.5,
-      //     //     fillColor: "rgba(170,114,57,1)",
-      //     //     fillOpacity: 0.8,
-      //     //     zIndex: 10,
-      //     //     bubble: true,
-      //     //     cursor: "pointer",
-      //     //     clickable: true,
-      //     //     click: e => {
-      //     //       console.log(e);
-      //     //     }
-      //     //   });
-      //     //   circleMarker.setMap(this.map);
-      //     //   circleMarker.on("click", function(e) {
-      //     //     console.log(e);
-      //     //   });
-      //     // });
-      //   }
-      // });
+      district.search("浙江省", (status, result) => {
+        if (status == "complete") {
+          const data = result.districtList[0].districtList;
+          data.forEach(v => {
+            var center = [v.center.lng, v.center.lat];
+            var circleMarker = new this.AMap.CircleMarker({
+              center: center,
+              radius: 5, //3D视图下，CircleMarker半径不要超过64px
+              strokeColor: "white",
+              strokeWeight: 2,
+              strokeOpacity: 0.5,
+              fillColor: "rgba(0,200,0,1)",
+              fillOpacity: 0.8,
+              zIndex: 10,
+              bubble: true,
+              cursor: "pointer",
+              clickable: true,
+              click: e => {
+                console.log(e);
+              }
+            });
+            circleMarker.setMap(this.map);
+            circleMarker.on("click", function(e) {
+              console.log(e);
+            });
+          });
+        }
+      });
     },
     showFirstTip() {
       const base = 1000;
@@ -396,28 +351,25 @@ export default {
         this.show = false;
       }, 1500);
     },
-    leave(el, done) {
-      window.Velocity(
-        el,
-        { transform: "scale(0)", opacity: 0 },
-        { duration: 500 }
-      );
-      window.Velocity(el, { opacity: 0 }, { complete: done });
+    leave(el) {
+      el.style.opacity = 0;
+      el.style.transform = "scale(0)";
       setTimeout(() => {
         this.coverShow = true;
-      }, 500);
+      }, 1000);
     },
     // 向上滑动的悬浮成出来的动画
     coverEnter(el) {
-      window.Velocity(el, { opacity: 1 }, { duration: 500 });
+      el.style.opacity = 1;
     },
     coverLeave(el) {
-      window.Velocity(el, { opacity: 0 }, { duration: 500 });
+      el.style.opacity = 0;
       setTimeout(() => {
         console.log("调用接口");
         this.listShow = true;
         this.map.panBy(0, -266);
-      });
+        this.setMaker();
+      }, 500);
     },
     touchmove() {
       this.coverShow = false;
@@ -426,23 +378,32 @@ export default {
       el.style.bottom = "-366px";
     },
     listEnter(el) {
-      window.Velocity(el, { bottom: "0px" }, { duration: 500 });
+      el.style.bottom = "0px";
     },
     listLeave() {
       console.log("控制list不消失");
     },
-    likeHandle(id) {
-      console.log(id);
-      axios.post("/addValue", { content: this.ideaStr }).then(res => {
-        if (res.success) {
-          alert("点赞成功");
+    getTotal() {
+      axios.get("/getAllUser").then(res => {
+        if (res.data && res.data.success) {
+          console.log();
+        }
+      });
+    },
+    likeHandle(id, i) {
+      if (this.newData[i].isActive) return;
+      axios.post("/addValue", { id }).then(res => {
+        if (res.data && res.data.success) {
+          this.newData[i].isActive = true;
+          this.newData[i].like_nums = +this.newData[i].like_nums + 1;
+          this.$set(this.newData, i, this.newData[i]);
         }
       });
     },
     sendIdeaStrHandle() {
       if (!this.ideaStr) return;
       axios.post("/comment", { content: this.ideaStr }).then(res => {
-        if (res.success) {
+        if (res.data && res.data.success) {
           this.ideaStr = "";
           this.modalShow = true;
           setTimeout(() => {
@@ -473,6 +434,15 @@ export default {
   top: 0;
   left: 2%;
   z-index: 111;
+}
+.total-num {
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  right: 2%;
+  z-index: 111;
+  color: #000;
+  font-size: 13px;
 }
 .animate-warpper {
   position: absolute;
@@ -590,6 +560,7 @@ export default {
   left: 0%;
   right: 0;
   border-top-right-radius: 6px;
+  transition: all 0.5s ease;
   line-height: 30px;
 }
 .list-warpper ul {
@@ -598,6 +569,7 @@ export default {
   background-color: #fff;
   margin: 0;
   padding: 20px;
+  overflow: auto;
 }
 .list-warpper ul li {
   width: 100%;
@@ -647,5 +619,18 @@ textarea {
   background: #ccc;
 }
 .modal-warpper {
+  position: absolute;
+  top: 10%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #000;
+}
+.modal-warpper div {
+  display: inline-block;
+  padding: 5px 10px;
+  background: #fff;
+  border-radius: 5px;
+  border: 1px solid #ccc;
 }
 </style>
