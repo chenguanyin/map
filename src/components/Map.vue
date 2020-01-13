@@ -441,7 +441,6 @@ export default {
   top: 0;
   right: 2%;
   z-index: 111;
-  color: #000;
   font-size: 13px;
 }
 .animate-warpper {
