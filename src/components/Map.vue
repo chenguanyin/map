@@ -40,7 +40,7 @@
     <transition @before-enter="listBeforeEnter" @enter="listEnter" @leave="listLeave">
       <div v-show="listShow" class="list-warpper">
         <div class="list-title">
-          <span :class="{ active: activeKey === 0 }" @click="activeKey = 0">委员说</span>
+          <span :class="{ active: activeKey === 0 }" @click="activeKey = 0">代表委员说</span>
           <span :class="{ active: activeKey === 1 }" @click="activeKey = 1">大家说</span>
         </div>
         <ul v-if="activeKey === 0">
@@ -287,7 +287,7 @@ export default {
           strokeColor: "white",
           strokeWeight: 1,
           strokeOpacity: 0.5,
-          fillColor: "rgba(0,200,0,1)",
+          fillColor: "rgb(245,200,82)",
           fillOpacity: 0.8,
           zIndex: 10,
           bubble: true,
@@ -302,8 +302,8 @@ export default {
       };
       console.log(district);
       this.mapData.forEach((v, i) => {
-        var center = [v.lng, v.lat];
-        addMaker(center);
+        // var center = [v.lng, v.lat];
+        // addMaker(center);
         district.search(v.area, (status, result) => {
           if (status == "complete") {
             const data = result.districtList[0].districtList;
@@ -474,6 +474,7 @@ export default {
   position: absolute;
   top: 0;
   right: 2%;
+  padding-top: 5px;
   z-index: 111;
   font-size: 13px;
   color: #000;
