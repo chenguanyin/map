@@ -1,7 +1,7 @@
 <template>
   <div class="map-warpper" :class="wrapper">
     <img :src="homeIcon" alt="图标" class="page-icon" />
-    <span class="total-num" v-show='listShow'>总点赞数：{{totalNum}}</span>
+    <span class="total-num" v-show="listShow">总点赞数：{{totalNum}}</span>
     <div id="container" style="width: 100%;height: 100%" />
     <transition @enter="enter" @after-enter="afterEnter" @leave="leave">
       <div v-if="show" class="animate-warpper" :style="{backgroundImage: `url(${coverImg})`}">
@@ -41,25 +41,28 @@
       <div v-show="listShow" class="list-warpper">
         <div class="list-title">
           <span :class="{ active: activeKey === 0 }" @click="activeKey = 0">委员说</span>
-          <span :class="{ active: activeKey === 1 }" @click="activeKey = 1">群众说</span>
+          <span :class="{ active: activeKey === 1 }" @click="activeKey = 1">大家说</span>
         </div>
         <ul v-if="activeKey === 0">
           <li v-for="(data, index) in newData" :key="data.id">
-            <div>{{data.record}}</div>
+            <div>
+              <strong>{{data.city}}-{{data.usr}}</strong>
+              <div>{{data.record}}</div>
+            </div>
             <span
               class="like-icon"
               :style="{backgroundImage: `url(${data.isActive? likeActiveImg:likeImg})`}"
-              @click="likeHandle(data.id, index)"
+              @click="likeHandle(data, index)"
             >{{data.like_nums}}</span>
           </li>
         </ul>
         <ul v-if="activeKey === 1">
-          <textarea cols="30" rows="3" v-model="ideaStr"></textarea>
+          <textarea rows="2" v-model="ideaStr"></textarea>
           <div>
             <a class="btn" :class="{disabled: !ideaStr}" @click="sendIdeaStrHandle">发表</a>
           </div>
-          <li v-for="data in newData" :key="data.id">
-            <div>{{data.record}}</div>
+          <li v-for="data in commentData" :key="data.id">
+            <div>{{data.content}}</div>
           </li>
         </ul>
       </div>
@@ -99,7 +102,7 @@ export default {
       modalShow: false,
       ideaStr: "",
       activeKey: 0,
-      totalNum: 1234,
+      totalNum: 0,
       citylIist: [{ name: "杭州", number: 1 }],
       homeTitle: homeTitle,
       homeIcon: homeIcon,
@@ -129,6 +132,7 @@ export default {
   mounted() {
     this.getData();
     this.init();
+    this.getTotal();
   },
 
   methods: {
@@ -139,10 +143,11 @@ export default {
         gridMapForeign: true,
         resizeEnable: true,
         // zoomEnable: false,
+        dragEnable: false,
         mapStyle: "amap://styles/normal",
         zoom: 7
       });
-      this.map.setFeatures(["road", "point", "bg"]);
+      this.map.setFeatures(["point", "bg"]);
       // zoom listening//basic UI control
       window.AMapUI.loadUI(["control/BasicControl"], BasicControl => {
         //添加一个缩放控件
@@ -153,13 +158,21 @@ export default {
           })
         );
       });
-      this.initPro(1);
+      this.showFirstTip(this.map);
+      // this.listShow = true;
     },
 
+    // 获取对应数据
     getData() {
       axios.get("/getNews").then(res => {
         const { model, success } = res.data;
         if (success) {
+          const likeInfo = JSON.parse(localStorage.getItem("likeInfo") || "[]");
+          model.forEach(v => {
+            if (likeInfo.includes(v.id)) {
+              v.isActive = true;
+            }
+          });
           this.newData = model;
         }
       });
@@ -173,11 +186,13 @@ export default {
       axios.get("/mapdata").then(res => {
         const { model, success } = res.data;
         if (success) {
-          this.mapdata = model;
+          model.sort((pre, next) => +next.value - +pre.value);
+          this.mapData = model;
         }
       });
     },
 
+    // 地图颜色改变。。
     initPro(dep) {
       dep = typeof dep == "undefined" ? 0 : dep;
       this.disProvince && this.disProvince.setMap(null);
@@ -202,100 +217,109 @@ export default {
       });
 
       this.disProvince.setMap(this.map);
-      this.showFirstTip(this.map);
-      // this.listShow = true;
+      console.log(this.disProvince);
     },
 
+    // 设置地图颜色
     getColorByName(name) {
       console.log(name);
       if (!this.colors[name]) {
-        var gb = Math.random() * 155;
+        console.log(this.mapData);
+        const index = this.mapData.findIndex(v => v.area === name);
+        console.log(index);
+        var gb = index * 15;
+        console.log(gb);
         this.colors[name] = `rgb(200, ${gb},${gb})`;
       }
-
       return this.colors[name];
     },
-    setPolygons() {
+
+    // 没有用到，设置遮罩层
+    setPolygons(name) {
       //行政区划查询
       var opts = {
-        subdistrict: 2, //返回下一级行政区
+        subdistrict: 0, //返回下一级行政区
         extensions: "all", // 返回行政区边界坐标等具体信息
-        level: "province", // 查询范围是区
+        level: "city", // 查询范围是区
         showbiz: false //最后一级返回街道信息
       };
       let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
-      district.search("浙江省", (status, result) => {
+      district.search(name, (status, result) => {
         if (status == "complete") {
           console.log(result);
-          const { boundaries, districtList } = result.districtList[0];
-          var polygons = [];
-          const obj = {};
-          districtList.forEach(v => {
-            obj[v.name] = {
-              lng: v.center.lng,
-              lat: v.center.lat
-            };
-          });
-          console.log(JSON.stringify(obj));
+          const { boundaries } = result.districtList[0];
+          if (!this.polygons) this.polygons = [];
+          console.log(result.districtList[0]);
           if (boundaries) {
             for (var i = 0, l = boundaries.length; i < l; i++) {
-              //生成行政区划polygon
+              // 生成行政区划polygon
               var polygon = new this.AMap.Polygon({
                 map: this.map,
                 strokeWeight: 1,
                 path: boundaries[i],
-                fillOpacity: 0.7,
-                fillColor: "rgba(255, 0, 0, 0.5)",
+                fillOpacity: 1,
+                fillColor: "rgba(255, 255, 255, 0.7)",
                 strokeColor: "#fff"
               });
-              polygons.push(polygon);
+              this.polygons.push(polygon);
             }
+            setTimeout(() => {
+              this.polygons.forEach(v => v.setMap(null));
+            }, 300);
           }
-          // this.showFirstTip(this.map);
-          this.listShow = true;
         }
       });
     },
 
+    // 设置marker点
     setMaker() {
       //行政区划查询
       var opts = {
-        subdistrict: 2, //返回下一级行政区
-        extensions: "all", // 返回行政区边界坐标等具体信息
-        level: "district", // 查询范围是区
-        showbiz: false //最后一级返回街道信息
+        subdistrict: 1, //返回下一级行政区
+        level: "city" // 查询范围是区¸
       };
       let district = new this.AMap.DistrictSearch(opts); //注意：需要使用插件同步下发功能才能这样直接使用
+      const addMaker = center => {
+        if (!this.markers) this.markers = [];
+        var circleMarker = new this.AMap.CircleMarker({
+          center: center,
+          radius: 3, //3D视图下，CircleMarker半径不要超过64px
+          strokeColor: "white",
+          strokeWeight: 1,
+          strokeOpacity: 0.5,
+          fillColor: "rgba(0,200,0,1)",
+          fillOpacity: 0.8,
+          zIndex: 10,
+          bubble: true,
+          cursor: "pointer",
+          // clickable: true,
+          // click: e => {
+          //   console.log(e);
+          // }
+        });
+        circleMarker.setMap(this.map);
+        this.markers.push(circleMarker);
+      };
       console.log(district);
-      district.search("浙江省", (status, result) => {
-        if (status == "complete") {
-          const data = result.districtList[0].districtList;
-          data.forEach(v => {
-            var center = [v.center.lng, v.center.lat];
-            var circleMarker = new this.AMap.CircleMarker({
-              center: center,
-              radius: 5, //3D视图下，CircleMarker半径不要超过64px
-              strokeColor: "white",
-              strokeWeight: 2,
-              strokeOpacity: 0.5,
-              fillColor: "rgba(0,200,0,1)",
-              fillOpacity: 0.8,
-              zIndex: 10,
-              bubble: true,
-              cursor: "pointer",
-              clickable: true,
-              click: e => {
-                console.log(e);
+      this.mapData.forEach((v, i) => {
+        var center = [v.lng, v.lat];
+        addMaker(center);
+        district.search(v.area, (status, result) => {
+          if (status == "complete") {
+            const data = result.districtList[0].districtList;
+            console.log(data, i - data.length);
+            data.forEach(city => {
+              var cityCenter = [city.center.lng, city.center.lat];
+              if (cityCenter) {
+                addMaker(cityCenter);
               }
             });
-            circleMarker.setMap(this.map);
-            circleMarker.on("click", function(e) {
-              console.log(e);
-            });
-          });
-        }
+          }
+        });
       });
     },
+
+    // 设置气泡框的弹出
     showFirstTip() {
       const base = 1000;
       const showTipTime = 2000;
@@ -366,6 +390,7 @@ export default {
       el.style.opacity = 0;
       setTimeout(() => {
         console.log("调用接口");
+        this.initPro(1);
         this.listShow = true;
         this.map.panBy(0, -266);
         this.setMaker();
@@ -383,23 +408,32 @@ export default {
     listLeave() {
       console.log("控制list不消失");
     },
+
+    // 获取总数
     getTotal() {
       axios.get("/getAllUser").then(res => {
         if (res.data && res.data.success) {
-          console.log();
+          this.totalNum = res.data.total;
         }
       });
     },
-    likeHandle(id, i) {
+
+    // 点赞操作
+    likeHandle(data, i) {
       if (this.newData[i].isActive) return;
+      const { id, city } = data;
       axios.post("/addValue", { id }).then(res => {
         if (res.data && res.data.success) {
           this.newData[i].isActive = true;
           this.newData[i].like_nums = +this.newData[i].like_nums + 1;
           this.$set(this.newData, i, this.newData[i]);
+          const likeList = this.newData.filter(v => v.isActive).map(v => v.id);
+          localStorage.setItem("likeInfo", JSON.stringify(likeList));
+          this.setPolygons(city);
         }
       });
     },
+    // 发送说的内容
     sendIdeaStrHandle() {
       if (!this.ideaStr) return;
       axios.post("/comment", { content: this.ideaStr }).then(res => {
@@ -429,7 +463,7 @@ export default {
   position: relative;
 }
 .page-icon {
-  width: 90px;
+  width: 110px;
   position: absolute;
   top: 0;
   left: 2%;
@@ -442,6 +476,7 @@ export default {
   right: 2%;
   z-index: 111;
   font-size: 13px;
+  color: #000;
 }
 .animate-warpper {
   position: absolute;
@@ -549,17 +584,17 @@ export default {
   background-size: 100% 100%;
 }
 .list-warpper {
-  height: 366px;
+  height: 406px;
   color: #000;
   position: absolute;
-  bottom: -336px;
+  bottom: -406px;
   z-index: 99999;
   margin-left: 5%;
   margin-right: 5%;
   left: 0%;
   right: 0;
   border-top-right-radius: 6px;
-  transition: all 0.5s ease;
+  transition: all 1s ease;
   line-height: 30px;
 }
 .list-warpper ul {
@@ -577,6 +612,9 @@ export default {
   overflow: hidden;
   word-break: break-all;
   border-bottom: 1px solid #9c9c9c6b;
+}
+.list-warpper ul li:last-child {
+  border-bottom: none;
 }
 .list-title {
   display: inline-block;
@@ -606,6 +644,8 @@ export default {
 textarea {
   border: 1px solid rgb(204, 204, 204);
   width: 98%;
+  padding: 5px;
+  font-size: 15px;
 }
 .btn {
   background: rgba(255, 0, 0, 0.7);
