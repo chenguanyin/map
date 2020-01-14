@@ -144,6 +144,7 @@ export default {
         resizeEnable: true,
         // zoomEnable: false,
         dragEnable: false,
+        scrollWheel: false,
         mapStyle: "amap://styles/normal",
         zoom: 7
       });
@@ -258,14 +259,14 @@ export default {
                 strokeWeight: 1,
                 path: boundaries[i],
                 fillOpacity: 1,
-                fillColor: "rgba(255, 255, 255, 0.7)",
+                fillColor: "#feff00",
                 strokeColor: "#fff"
               });
               this.polygons.push(polygon);
             }
             setTimeout(() => {
               this.polygons.forEach(v => v.setMap(null));
-            }, 300);
+            }, 1000);
           }
         }
       });
@@ -291,7 +292,7 @@ export default {
           fillOpacity: 0.8,
           zIndex: 10,
           bubble: true,
-          cursor: "pointer",
+          cursor: "pointer"
           // clickable: true,
           // click: e => {
           //   console.log(e);
