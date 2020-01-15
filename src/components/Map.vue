@@ -159,7 +159,7 @@ export default {
     init() {
       this.show = true;
       this.initMap("fristMap");
-      this.initPro();
+      this.initPro(1);
       // this.showFirstTip();
     },
     // 初始化地图
@@ -226,7 +226,7 @@ export default {
             // adcode
             return this.getColorByName(properties.NAME_CHN);
           },
-          "province-stroke": "cornflowerblue",
+          "province-stroke": "white",
           "city-stroke": "white", // 中国地级市边界
           "county-stroke": "rgba(255,255,255,0.5)" // 中国区县边界
         }
@@ -364,7 +364,7 @@ export default {
       }, base + showTipTime);
       setTimeout(() => {
         this.map.setCenter(this.hangZhouPos);
-        this.map.panBy(0, -80);
+        this.map.panBy(0, -100);
         this.secondTipShow = false;
         this.coverShow = true;
       }, base + showTipTime * 2);
