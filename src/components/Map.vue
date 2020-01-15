@@ -158,7 +158,9 @@ export default {
     // 页面初始化
     init() {
       this.show = true;
-      this.initMap("fristMap");
+      this.initMap("fristMap", {
+        center: this.wenzhouPos
+      });
       this.initPro(1);
       // this.showFirstTip();
     },
@@ -339,7 +341,6 @@ export default {
       const showTipTime = 2000;
       const height = window.innerHeight;
       setTimeout(() => {
-        this.map.setCenter(this.wenzhouPos);
         this.map.panBy(0, 50);
         setTimeout(() => {
           this.FirstTipShow = true;

@@ -139,4 +139,8 @@ html,
   -webkit-animation-name: fadeOut;
   animation-name: fadeOut;
 }
+body .amap-copyright,
+body .amap-logo {
+  display: none !important;
+}
 </style>
