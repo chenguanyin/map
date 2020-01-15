@@ -178,7 +178,7 @@ export default {
         dragEnable: false,
         scrollWheel: false,
         mapStyle: "amap://styles/normal",
-        zoom: 7,
+        zoom: 6,
         ...config
       });
       this.map.setFeatures(["point", "bg"]);
