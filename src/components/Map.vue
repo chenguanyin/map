@@ -38,7 +38,7 @@
     </transition>
 
     <!-- 第二屏的东西 -->
-    <div id="container" style="width: 100%;height: 100%" v-show="showSecondMap" />
+    <div id="container" style="width: 100%;height: 100%; pointer-events: none;" v-show="showSecondMap" />
     <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeOut">
       <div v-if="listShow" class="scale-wrapper">
         <div v-for="(item,index) in sliceMapData" :key="item.id" class="scale-wrapper-item">
@@ -504,6 +504,7 @@ export default {
   bottom: 25%;
   width: 100%;
   transition: all 0.5s ease;
+  pointer-events: none;
 }
 .fristMap-overlays {
   position: absolute;
