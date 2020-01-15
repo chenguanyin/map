@@ -63,8 +63,8 @@
           <li v-for="(data, index) in newData" :key="data.id">
             <div>
               <strong>{{data.city}}-{{data.usr}}</strong>
-              <audio v-if="data.mp3_url" :src="data.mp3_url" controls width="100%" height="50px"></audio>
-              <video v-if="data.mp4_url" :src="data.mp4_url" controls width="100%" height="200px"></video>
+              <audio v-if="data.mp3_url" :src="data.mp3_url" controls></audio>
+              <video v-if="data.mp4_url" :src="data.mp4_url" controls></video>
               <div>{{data.record}}</div>
             </div>
             <span

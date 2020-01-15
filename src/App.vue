@@ -143,4 +143,12 @@ body .amap-copyright,
 body .amap-logo {
   display: none !important;
 }
+audio {
+  width: 100%;
+  height: 54px;
+}
+video{
+  width: 100%;
+  height: 200px;
+}
 </style>
