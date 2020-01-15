@@ -1,28 +1,26 @@
 <template>
-  <div class="map-warpper" :class="wrapper">
+  <div class="map-warpper" :class="wrapper" :style="{backgroundImage: `url(${bgImg})`}">
+    <!-- 第一屏 -->
     <img :src="homeIcon" alt="图标" class="page-icon" />
     <span class="total-num" v-show="listShow">总点赞数：{{totalNum}}</span>
-    <div id="container" style="width: 100%;height: 100%" />
-    <transition @enter="enter" @after-enter="afterEnter" @leave="leave">
-      <div v-if="show" class="animate-warpper" :style="{backgroundImage: `url(${coverImg})`}">
-        <div class="home-title" :style="{backgroundImage: `url(${homeIcon})`}">
-          <img :src="homeTitle" alt="标题" />
-        </div>
-        <div>文字。。。。</div>
+    <div id="fristMap" v-show="!listShow"></div>
+    <transition @enter="enter" @leave="leave">
+      <div v-if="show" class="animate-warpper">
+        <div class="home-icon" :style="{backgroundImage: `url(${fristIcon})`}"></div>
+        <div class="home-title" :style="{backgroundImage: `url(${homeTitle})`}"></div>
       </div>
     </transition>
     <transition @enter="coverEnter" @leave="coverLeave">
-      <div v-if="coverShow" class="cover-warpper" @touchmove="touchmove">
-        <div class="cover-title" :style="{backgroundImage: `url(${scrollImg})`}" />
+      <div v-if="coverShow" class="cover-warpper" @click="touchmove">
+        <div class="cover-title" :style="{backgroundImage: `url(${arrowImg})`}" />
       </div>
     </transition>
-
     <transition
       name="custom-classes-transition"
       enter-active-class="animated fadeIn"
       leave-active-class="animated fadeOut"
     >
-      <div v-if="FirstTipShow" class="first-tip-warpper">
+      <div v-show="FirstTipShow" class="first-tip-warpper">
         <div class="first-tip-dot" :style="{backgroundImage: `url(${dotImg})`}"></div>
         <div class="first-tip" :style="{backgroundImage: `url(${bg1Img})`}"></div>
       </div>
@@ -35,6 +33,19 @@
       <div v-show="secondTipShow" class="second-tip-warpper">
         <div class="second-tip-dot" :style="{backgroundImage: `url(${dotImg})`}"></div>
         <div class="second-tip" :style="{backgroundImage: `url(${bg1Img})`}"></div>
+      </div>
+    </transition>
+
+    <!-- 第二屏的东西 -->
+    <div id="container" style="width: 100%;height: 100%" v-show="showSecondMap" />
+    <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeOut">
+      <div v-if="listShow" class="scale-wrapper">
+        <div v-for="(item,index) in sliceMapData" :key="item.id" class="scale-wrapper-item">
+          <div v-if="index < 5">
+            <span :style="{backgroundColor: `${colors[index]}`}" class="scale-bgcolor"></span>
+            <span>{{item.area}}</span>
+          </div>
+        </div>
       </div>
     </transition>
     <transition @before-enter="listBeforeEnter" @enter="listEnter" @leave="listLeave">
@@ -89,7 +100,9 @@ import homeIcon from "./home_icon.png";
 import homeTitle from "./home_title.png";
 import like from "./like.png";
 import likeActive from "./like_clicked.png";
-console.log(Img);
+import bgImg from "./bg.png";
+import fristIcon from "./first_icon.png";
+import arrow from "./arrow.png";
 export default {
   name: "Map",
   data() {
@@ -100,6 +113,9 @@ export default {
       secondTipShow: false,
       listShow: false,
       modalShow: false,
+      bgImg: bgImg,
+      fristIcon: fristIcon,
+      arrowImg: arrow,
       ideaStr: "",
       activeKey: 0,
       totalNum: 0,
@@ -112,6 +128,7 @@ export default {
       bg1Img: bg1,
       likeImg: like,
       likeActiveImg: likeActive,
+      showSecondMap: false,
       isMobile: /iPad|iPod|iPhone|Android/.test(navigator.userAgent),
       AMap: window.AMap,
       zhouShanPos: [122.106863, 30.016028],
@@ -120,25 +137,34 @@ export default {
       mapData: [],
       newData: [],
       commentData: [],
-      colors: []
+      mapColors: [],
+      colors: ["#CD2626", "#DC143C", "#CD5555", "#EE6363", "#EE6A50", "#de4e4e"]
     };
   },
   computed: {
-    wrapper: vm => (vm.isMobile ? "amap-ui-mobile" : "amap-ui-pc")
+    wrapper: vm => (vm.isMobile ? "amap-ui-mobile" : "amap-ui-pc"),
+    sliceMapData: vm => vm.mapData.slice(0, 5)
   },
   props: {
     msg: String
   },
   mounted() {
     this.getData();
-    this.init();
     this.getTotal();
+    this.init();
   },
 
   methods: {
-    // set map
+    // 页面初始化
     init() {
-      this.map = new this.AMap.Map("container", {
+      this.show = true;
+      this.initMap("fristMap");
+      this.initPro();
+      // this.showFirstTip();
+    },
+    // 初始化地图
+    initMap(id, config = {}) {
+      this.map = new this.AMap.Map(id, {
         center: this.hangZhouPos,
         gridMapForeign: true,
         resizeEnable: true,
@@ -146,21 +172,10 @@ export default {
         dragEnable: false,
         scrollWheel: false,
         mapStyle: "amap://styles/normal",
-        zoom: 7
+        zoom: 7,
+        ...config
       });
       this.map.setFeatures(["point", "bg"]);
-      // zoom listening//basic UI control
-      window.AMapUI.loadUI(["control/BasicControl"], BasicControl => {
-        //添加一个缩放控件
-        this.map.addControl(
-          new BasicControl.Zoom({
-            position: "rb",
-            theme: "dark"
-          })
-        );
-      });
-      this.showFirstTip(this.map);
-      // this.listShow = true;
     },
 
     // 获取对应数据
@@ -224,15 +239,13 @@ export default {
     // 设置地图颜色
     getColorByName(name) {
       console.log(name);
-      if (!this.colors[name]) {
-        console.log(this.mapData);
+      if (name === "浙江省") return "#ca3c32";
+      if (!this.mapColors[name]) {
         const index = this.mapData.findIndex(v => v.area === name);
-        console.log(index);
-        var gb = index * 15;
-        console.log(gb);
-        this.colors[name] = `rgb(200, ${gb},${gb})`;
+        this.mapColors[name] =
+          this.colors[index] || this.colors[this.colors.length - 1];
       }
-      return this.colors[name];
+      return this.mapColors[name];
     },
 
     // 没有用到，设置遮罩层
@@ -324,31 +337,36 @@ export default {
     showFirstTip() {
       const base = 1000;
       const showTipTime = 2000;
+      const height = window.innerHeight;
       setTimeout(() => {
         this.map.setCenter(this.wenzhouPos);
-        this.map.panBy(0, 200);
+        this.map.panBy(0, 50);
         setTimeout(() => {
           this.FirstTipShow = true;
+          // const center = this.map.getCenter();
+          // var lnglat = new this.AMap.LngLat(center.lng, center.lat);
+          // var pixel = this.map.lngLatToContainer(lnglat);
+          // console.log(pixel);
+          // const y = pixel.y - 200;
+          const firstTip = document.querySelector(".first-tip-warpper");
+          firstTip.style.top = `${height / 2 - 160}px`;
         }, 500);
       }, base);
       setTimeout(() => {
         this.map.setCenter(this.zhouShanPos);
+        this.map.panBy(0, -1);
         this.FirstTipShow = false;
         setTimeout(() => {
           this.secondTipShow = true;
-          const center = this.map.getCenter();
-          var lnglat = new this.AMap.LngLat(center.lng, center.lat);
-          var pixel = this.map.lngLatToContainer(lnglat);
-          console.log(pixel);
-          const y = pixel.y - 200;
           const firstTip = document.querySelector(".second-tip-warpper");
-          firstTip.style.top = `${y}px`;
+          firstTip.style.top = `${height / 2 - 210}px`;
         }, 500);
       }, base + showTipTime);
       setTimeout(() => {
         this.map.setCenter(this.hangZhouPos);
+        this.map.panBy(0, -80);
         this.secondTipShow = false;
-        this.show = true;
+        this.coverShow = true;
       }, base + showTipTime * 2);
     },
     // 标题出来的动画
@@ -365,23 +383,14 @@ export default {
           e.style.bottom = 0;
           if (i === children.length - 1) {
             // 这里的 done 就是 afterEnter 的引用
+            this.showFirstTip();
             done();
           }
         }, i + i * 1500);
       });
     },
-    afterEnter() {
-      // 动画完成之后
-      setTimeout(() => {
-        this.show = false;
-      }, 1500);
-    },
     leave(el) {
       el.style.opacity = 0;
-      el.style.transform = "scale(0)";
-      setTimeout(() => {
-        this.coverShow = true;
-      }, 1000);
     },
     // 向上滑动的悬浮成出来的动画
     coverEnter(el) {
@@ -390,14 +399,22 @@ export default {
     coverLeave(el) {
       el.style.opacity = 0;
       setTimeout(() => {
+        this.showSecondMap = true;
+        this.initMap("container");
+      }, 500);
+      setTimeout(() => {
+        this.listShow = true;
         console.log("调用接口");
         this.initPro(1);
-        this.listShow = true;
         this.map.panBy(0, -266);
         this.setMaker();
-      }, 500);
+      }, 600);
     },
     touchmove() {
+      const map = document.getElementById("fristMap");
+      const title = document.querySelector(".animate-warpper");
+      map.style.transform = "scale(0)";
+      title.style.top = "-100%";
       this.coverShow = false;
     },
     listBeforeEnter(el) {
@@ -462,6 +479,16 @@ export default {
   width: 100%;
   height: 100%;
   position: relative;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+#fristMap {
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  width: 100%;
+  transition: all 0.5s ease;
 }
 .page-icon {
   width: 110px;
@@ -482,59 +509,53 @@ export default {
 }
 .animate-warpper {
   position: absolute;
-  top: 40%;
+  top: 6%;
   left: 0;
   width: 100%;
-  height: 60%;
+  height: 18%;
   opacity: 0;
-  transition: all 1s ease;
+  transition: all 0.5s ease;
   color: #ccc;
   text-align: center;
 }
+.home-icon {
+  width: 100%;
+  height: 40%;
+  background-repeat: no-repeat;
+  background-position: top left;
+  background-size: 70% 100%;
+  transition: all 1s ease;
+}
 .home-title {
   width: 100%;
-  height: 80px;
-  padding-top: 10px;
-  margin-bottom: 30px;
+  height: 60%;
   background-repeat: no-repeat;
-  background-position: 95% 0%;
-  background-size: 80px;
-}
-.home-title img {
-  width: 90%;
-  height: 100%;
+  transition: all 1s ease;
+  background-position: 80% 0%;
+  background-size: 70%;
 }
 .animate-warpper div {
   opacity: 0;
   position: relative;
   bottom: -20px;
-  transition: all 1s ease;
-}
-.animate-title {
-  font-size: 30px;
 }
 .cover-warpper {
   position: absolute;
   left: 0%;
   bottom: 0%;
   width: 100%;
-  height: 100%;
+  height: 50px;
   z-index: 999999;
-  background-color: rgba(0, 0, 0, 0.7);
   transition: all 1s ease;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
   opacity: 0;
 }
 .cover-title {
-  position: absolute;
-  left: 0%;
-  bottom: 0%;
-  height: 300px;
+  height: 50px;
   width: 100%;
   background-repeat: no-repeat;
   background-position: center;
+  background-size: 35px;
+  animation: start 1.5s infinite ease-in-out;
 }
 .first-tip-warpper {
   position: absolute;
@@ -673,5 +694,44 @@ textarea {
   background: #fff;
   border-radius: 5px;
   border: 1px solid #ccc;
+}
+.scale-wrapper {
+  position: absolute;
+  top: 8%;
+  left: 10px;
+  color: #000;
+  font-size: 12px;
+  border: 1px solid #ccc;
+}
+.scale-wrapper-item {
+  padding: 3px 5px;
+  border-bottom: 1px solid #ccc;
+  background: #fff;
+}
+.scale-wrapper-item:last-child {
+  border-bottom: none;
+}
+.scale-bgcolor {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+@keyframes start {
+  0%,
+  30% {
+    opacity: 0;
+    transform: rotate(90deg);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(90deg);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(90deg);
+  }
 }
 </style>
