@@ -249,7 +249,7 @@ export default {
       console.log(name);
       if (name === "浙江省") return "#ca3c32";
       if (!this.mapColors[name]) {
-        const index = this.mapData.findIndex(v => v.area === name);
+        const index = this.mapData.findIndex(v => name.indexOf(v.area) > -1);
         this.mapColors[name] =
           this.colors[index] || this.colors[this.colors.length - 1];
       }
