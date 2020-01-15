@@ -2,8 +2,9 @@
   <div class="map-warpper" :class="wrapper" :style="{backgroundImage: `url(${bgImg})`}">
     <!-- 第一屏 -->
     <img :src="homeIcon" alt="图标" class="page-icon" />
-    <span class="total-num" v-show="listShow">总点赞数：{{totalNum}}</span>
+    <span class="total-num" v-show="listShow">参与点亮人数：{{totalNum}}</span>
     <div id="fristMap" v-show="!listShow"></div>
+    <div class="fristMap-overlays" v-show="!listShow"></div>
     <transition @enter="enter" @leave="leave">
       <div v-if="show" class="animate-warpper">
         <div class="home-icon" :style="{backgroundImage: `url(${fristIcon})`}"></div>
@@ -11,7 +12,7 @@
       </div>
     </transition>
     <transition @enter="coverEnter" @leave="coverLeave">
-      <div v-if="coverShow" class="cover-warpper" @click="touchmove">
+      <div v-if="coverShow" class="cover-warpper" @touchmove="touchmove">
         <div class="cover-title" :style="{backgroundImage: `url(${arrowImg})`}" />
       </div>
     </transition>
@@ -158,9 +159,8 @@ export default {
     // 页面初始化
     init() {
       this.show = true;
-      this.initMap("fristMap", {
-        center: this.wenzhouPos
-      });
+      this.initMap("fristMap");
+      this.map.panBy(-20, -95);
       this.initPro(1);
       // this.showFirstTip();
     },
@@ -178,6 +178,8 @@ export default {
         ...config
       });
       this.map.setFeatures(["point", "bg"]);
+      const overlays = document.querySelector(".fristMap-overlays");
+      overlays.style.display = "inline-block";
     },
 
     // 获取对应数据
@@ -274,14 +276,14 @@ export default {
                 strokeWeight: 1,
                 path: boundaries[i],
                 fillOpacity: 1,
-                fillColor: "#feff00",
+                fillColor: "#f5c652",
                 strokeColor: "#fff"
               });
               this.polygons.push(polygon);
             }
             setTimeout(() => {
               this.polygons.forEach(v => v.setMap(null));
-            }, 1000);
+            }, 500);
           }
         }
       });
@@ -337,8 +339,8 @@ export default {
 
     // 设置气泡框的弹出
     showFirstTip() {
-      const base = 1000;
-      const showTipTime = 2000;
+      const base = 500;
+      const showTipTime = 4000;
       const height = window.innerHeight;
       setTimeout(() => {
         this.map.panBy(0, 50);
@@ -384,7 +386,17 @@ export default {
           e.style.bottom = 0;
           if (i === children.length - 1) {
             // 这里的 done 就是 afterEnter 的引用
-            this.showFirstTip();
+            // this.showFirstTip();
+            setTimeout(() => {
+              el.style.transform = "scale(1.4)";
+              setTimeout(() => {
+                el.style.transform = "scale(0.4)";
+                setTimeout(() => {
+                  el.style.transform = "scale(1)";
+                  this.coverShow = true;
+                });
+              }, 500);
+            }, 500);
             done();
           }
         }, i + i * 1500);
@@ -407,14 +419,16 @@ export default {
         this.listShow = true;
         console.log("调用接口");
         this.initPro(1);
-        this.map.panBy(0, -266);
+        this.map.panBy(-10, -266);
         this.setMaker();
       }, 600);
     },
     touchmove() {
       const map = document.getElementById("fristMap");
+      const overlays = document.querySelector(".fristMap-overlays");
       const title = document.querySelector(".animate-warpper");
       map.style.transform = "scale(0)";
+      overlays.style.display = "none";
       title.style.top = "-100%";
       this.coverShow = false;
     },
@@ -486,10 +500,20 @@ export default {
 }
 #fristMap {
   position: absolute;
-  top: 25%;
+  top: 23%;
   bottom: 25%;
   width: 100%;
   transition: all 0.5s ease;
+}
+.fristMap-overlays {
+  position: absolute;
+  top: 23%;
+  bottom: 25%;
+  z-index: 11;
+  display: none;
+  width: 50px;
+  height: 50px;
+  background-color: #fcf9f2;
 }
 .page-icon {
   width: 110px;
@@ -543,20 +567,22 @@ export default {
 .cover-warpper {
   position: absolute;
   left: 0%;
-  bottom: 0%;
+  bottom: 8%;
   width: 100%;
   height: 50px;
   z-index: 999999;
   transition: all 1s ease;
   opacity: 0;
+  text-align: center;
 }
 .cover-title {
   height: 50px;
-  width: 100%;
+  width: 50px;
+  display: inline-block;
   background-repeat: no-repeat;
   background-position: center;
   background-size: 35px;
-  animation: start 1.5s infinite ease-in-out;
+  animation: start 1.5s infinite ease;
 }
 .first-tip-warpper {
   position: absolute;
@@ -608,25 +634,25 @@ export default {
   background-size: 100% 100%;
 }
 .list-warpper {
-  height: 406px;
+  height: 316px;
   color: #000;
   position: absolute;
-  bottom: -406px;
+  bottom: -316px;
   z-index: 99999;
-  margin-left: 5%;
-  margin-right: 5%;
   left: 0%;
-  right: 0;
+  width: 100%;
   border-top-right-radius: 6px;
   transition: all 1s ease;
   line-height: 30px;
 }
 .list-warpper ul {
   list-style: none;
-  height: 338px;
+  height: 288px;
+  width: 100%;
+  box-sizing: border-box;
   background-color: #fff;
   margin: 0;
-  padding: 20px;
+  padding: 10px 20px;
   overflow: auto;
 }
 .list-warpper ul li {
@@ -652,10 +678,12 @@ export default {
   display: inline-block;
   font-size: 14px;
   padding: 0 10px;
-}
-.list-title span.active {
   background: rgba(255, 0, 0, 0.7);
   color: #fff;
+}
+.list-title span.active {
+  background: #ffffff;
+  color: #000;
 }
 .like-icon {
   float: right;
@@ -723,16 +751,12 @@ textarea {
 @keyframes start {
   0%,
   30% {
-    opacity: 0;
-    transform: rotate(90deg);
-  }
-  60% {
     opacity: 1;
-    transform: rotate(90deg);
+    transform: translateY(0px) rotate(-90deg);
   }
   100% {
-    opacity: 0;
-    transform: rotate(90deg);
+    opacity: 1;
+    transform: translateY(-45px) rotate(-90deg);
   }
 }
 </style>
