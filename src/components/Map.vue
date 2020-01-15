@@ -102,7 +102,7 @@ import coverImg from "./cover.png";
 import dot from "./dot.png";
 import bg1 from "./show_bg_1.png";
 import homeIcon from "./home_icon.png";
-import homeTitle from "./home_title.png";
+import homeTitle from "./home_title.jpg";
 import like from "./like.png";
 import likeActive from "./like_clicked.png";
 import bgImg from "./bg.png";
@@ -178,7 +178,7 @@ export default {
         dragEnable: false,
         scrollWheel: false,
         mapStyle: "amap://styles/normal",
-        zoom: 6,
+        zoom: 7,
         ...config
       });
       this.map.setFeatures(["point", "bg"]);
