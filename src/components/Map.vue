@@ -63,6 +63,8 @@
           <li v-for="(data, index) in newData" :key="data.id">
             <div>
               <strong>{{data.city}}-{{data.usr}}</strong>
+              <audio v-if="data.mp3_url" :src="data.mp3_url" controls width="100%" height="50px"></audio>
+              <video v-if="data.mp4_url" :src="data.mp4_url" controls width="100%" height="200px"></video>
               <div>{{data.record}}</div>
             </div>
             <span
@@ -639,10 +641,10 @@ export default {
   background-size: 100% 100%;
 }
 .list-warpper {
-  height: 50%;
+  height: 48%;
   color: #000;
   position: absolute;
-  bottom: -50%;
+  bottom: -48%;
   z-index: 99999;
   left: 0%;
   width: 100%;
@@ -731,7 +733,7 @@ textarea {
 }
 .scale-wrapper {
   position: absolute;
-  top: 8%;
+  top: 6%;
   left: 10px;
   color: #000;
   font-size: 12px;
