@@ -634,10 +634,10 @@ export default {
   background-size: 100% 100%;
 }
 .list-warpper {
-  height: 316px;
+  height: 50%;
   color: #000;
   position: absolute;
-  bottom: -316px;
+  bottom: -50%;
   z-index: 99999;
   left: 0%;
   width: 100%;
@@ -647,12 +647,12 @@ export default {
 }
 .list-warpper ul {
   list-style: none;
-  height: 288px;
+  height: 100%;
   width: 100%;
   box-sizing: border-box;
   background-color: #fff;
   margin: 0;
-  padding: 10px 20px;
+  padding: 10px 20px 38px;
   overflow: auto;
 }
 .list-warpper ul li {
